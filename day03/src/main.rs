@@ -2,6 +2,44 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::str::FromStr;
 
+#[derive(Debug, PartialEq)]
+struct Point {
+  x: i32,
+  y: i32,
+}
+
+#[derive(Debug, PartialEq)]
+struct Size {
+  w: i32,
+  h: i32,
+}
+
+#[derive(Debug, PartialEq)]
+struct Claim {
+  id: i32,
+  loc: Point,
+  size: Size,
+}
+
+impl Claim {
+  fn from_str(line: &str) -> Result<Claim, Box<std::error::Error>> {
+    // #1 @ 1,3: 4x4
+    let split_chars = "#@,:x";
+    let parts: Vec<&str> = line.split_terminator(|c| split_chars.contains(c)).collect();
+
+    let id = i32::from_str(parts[1].trim()).unwrap();
+    let loc = Point {
+      x: i32::from_str(parts[2].trim()).unwrap(),
+      y: i32::from_str(parts[3].trim()).unwrap(),
+    };
+    let size = Size {
+      w: i32::from_str(parts[4].trim()).unwrap(),
+      h: i32::from_str(parts[5].trim()).unwrap(),
+    };
+    Ok(Claim { id, loc, size })
+  }
+}
+
 fn get_input<T, F>(filename: &str, transform: F) -> io::Result<Vec<T>>
 where
   F: Fn(&str) -> T,
@@ -12,8 +50,38 @@ where
   Ok(input)
 }
 
+fn part1(claims: &Vec<Claim>) -> i32 {
+  for claim in claims {
+    println!("{:?}", claim);
+  }
+  0
+}
+
 fn main() -> io::Result<()> {
-  let input: Vec<i32> = get_input("input.txt", |l| i32::from_str(l).unwrap())?;
-  println!("{:?}", input);
+  let input: Vec<Claim> = get_input("input.txt", |line| Claim::from_str(line).unwrap())?;
+  println!("Part1: {}", part1(&input));
+  // println!("Part2: {}", part2(&input)?);
   Ok(())
+}
+
+#[test]
+fn test_claim_from_str() {
+  assert_eq!(
+    Claim::from_str("#1 @ 1,3: 4x4").unwrap(),
+    Claim {
+      id: 1,
+      loc: Point { x: 1, y: 3 },
+      size: Size { w: 4, h: 4 },
+    }
+  );
+}
+
+#[test]
+fn test_sample_data() {
+  let input: Vec<Claim> = "#1 @ 1,3: 4x4\n#2 @ 3,1: 4x4\n#3 @ 5,5: 2x2"
+    .lines()
+    .map(Claim::from_str)
+    .map(Result::unwrap)
+    .collect();
+  assert_eq!(part1(&input), 4);
 }
