@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::str::FromStr;
@@ -16,7 +17,7 @@ struct Size {
 
 #[derive(Debug, PartialEq)]
 struct Claim {
-  id: i32,
+  id: u16,
   loc: Point,
   size: Size,
 }
@@ -27,7 +28,7 @@ impl Claim {
     let split_chars = "#@,:x";
     let parts: Vec<&str> = line.split_terminator(|c| split_chars.contains(c)).collect();
 
-    let id = i32::from_str(parts[1].trim()).unwrap();
+    let id = u16::from_str(parts[1].trim()).unwrap();
     let loc = Point {
       x: i32::from_str(parts[2].trim()).unwrap(),
       y: i32::from_str(parts[3].trim()).unwrap(),
@@ -53,8 +54,32 @@ where
 fn main() -> io::Result<()> {
   let claims: Vec<Claim> = get_input("input.txt", |line| Claim::from_str(line).unwrap())?;
   println!("Part1: {}", part1(&claims));
-  // println!("Part2: {}", part2(&input)?);
+  println!("Part2: {}", part2(&claims));
   Ok(())
+}
+
+fn part2(claims: &Vec<Claim>) -> u16 {
+  let mut grid = [[0u16; 1001]; 1001];
+  let mut untouched_claim_ids: HashSet<u16> = HashSet::with_capacity(1001);
+
+  for c in claims {
+    untouched_claim_ids.insert(c.id);
+
+    for x in c.loc.x..(c.loc.x + c.size.w) {
+      for y in c.loc.y..(c.loc.y + c.size.h) {
+        let (i_x, i_y) = (x as usize, y as usize);
+        let current_id = grid[i_x][i_y];
+        if current_id != 0 {
+          untouched_claim_ids.remove(&current_id);
+          untouched_claim_ids.remove(&c.id);
+        }
+        grid[i_x][i_y] = c.id;
+      }
+    }
+  }
+  assert_eq!(untouched_claim_ids.len(), 1);
+
+  *untouched_claim_ids.iter().next().unwrap()
 }
 
 fn part1(claims: &Vec<Claim>) -> i32 {
@@ -91,11 +116,21 @@ fn test_claim_from_str() {
 }
 
 #[test]
-fn test_sample_data() {
+fn test_part_1() {
   let input: Vec<Claim> = "#1 @ 1,3: 4x4\n#2 @ 3,1: 4x4\n#3 @ 5,5: 2x2"
     .lines()
     .map(Claim::from_str)
     .map(Result::unwrap)
     .collect();
   assert_eq!(part1(&input), 4);
+}
+
+#[test]
+fn test_part_2() {
+  let input: Vec<Claim> = "#1 @ 1,3: 4x4\n#2 @ 3,1: 4x4\n#3 @ 5,5: 2x2"
+    .lines()
+    .map(Claim::from_str)
+    .map(Result::unwrap)
+    .collect();
+  assert_eq!(part2(&input), 3);
 }
