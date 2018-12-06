@@ -50,18 +50,32 @@ where
   Ok(input)
 }
 
-fn part1(claims: &Vec<Claim>) -> i32 {
-  for claim in claims {
-    println!("{:?}", claim);
-  }
-  0
-}
-
 fn main() -> io::Result<()> {
-  let input: Vec<Claim> = get_input("input.txt", |line| Claim::from_str(line).unwrap())?;
-  println!("Part1: {}", part1(&input));
+  let claims: Vec<Claim> = get_input("input.txt", |line| Claim::from_str(line).unwrap())?;
+  println!("Part1: {}", part1(&claims));
   // println!("Part2: {}", part2(&input)?);
   Ok(())
+}
+
+fn part1(claims: &Vec<Claim>) -> i32 {
+  let mut grid = [[0u8; 1001]; 1001];
+
+  let mut overlaps = 0;
+
+  for c in claims {
+    for x in c.loc.x..(c.loc.x + c.size.w) {
+      for y in c.loc.y..(c.loc.y + c.size.h) {
+        let (i_x, i_y) = (x as usize, y as usize);
+        if grid[i_x][i_y] == 1 {
+          // only count first overlap
+          overlaps += 1;
+        }
+        grid[i_x][i_y] += 1;
+      }
+    }
+  }
+
+  overlaps
 }
 
 #[test]
