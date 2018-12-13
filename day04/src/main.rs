@@ -1,15 +1,22 @@
-extern crate chrono;
+#![feature(try_trait)]
 
-use chrono::prelude::*;
+extern crate regex;
+extern crate time;
+
+use regex::Regex;
 use std::fmt::Debug;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::num::ParseIntError;
 use std::str::FromStr;
+use time::Tm;
 
 #[derive(Debug)]
 enum ParseEventError {
   ParseIntError(ParseIntError),
+  ParseIdError(regex::Error),
+  NoMatchError(std::option::NoneError),
+  ParseTimeError(time::ParseError),
   BadInput,
 }
 
@@ -19,19 +26,29 @@ impl From<ParseIntError> for ParseEventError {
   }
 }
 
-// type id = i32;
+impl From<time::ParseError> for ParseEventError {
+  fn from(err: time::ParseError) -> Self {
+    ParseEventError::ParseTimeError(err)
+  }
+}
 
-// #[derive(Debug)]
-// enum Event {
-//   ClockIn(id, DateTime<Utc>),
-//   FallAsleep(DateTime<Utc>),
-//   WakeUp(DateTime<Utc>),
-// }
+impl From<regex::Error> for ParseEventError {
+  fn from(err: regex::Error) -> Self {
+    ParseEventError::ParseIdError(err)
+  }
+}
+
+impl From<std::option::NoneError> for ParseEventError {
+  fn from(err: std::option::NoneError) -> Self {
+    ParseEventError::NoMatchError(err)
+  }
+}
 
 #[derive(Debug)]
-struct Event {
-  x: i32,
-  y: i32,
+enum Event {
+  ClockIn(i32, Tm),
+  FallAsleep(Tm),
+  WakeUp(Tm),
 }
 
 impl FromStr for Event {
@@ -40,12 +57,26 @@ impl FromStr for Event {
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     use self::ParseEventError::*;
 
-    let mut coords = s.splitn(2, ",");
-    let x = coords.next().ok_or(BadInput)?.trim().parse()?;
-    let y = coords.next().ok_or(BadInput)?.trim().parse()?;
-    debug_assert!(coords.next().is_none());
+    // [1518-11-01 00:00] Guard #10 begins shift
+    let mut split_itr = s.splitn(2, "] ");
 
-    Ok(Event { x, y })
+    let dt_str = split_itr.next().ok_or(BadInput)?;
+    let dt = time::strptime(dt_str, "[%Y-%m-%d %H:%M")?;
+
+    let mut meta_itr = split_itr.next().ok_or(BadInput)?.splitn(2, " ");
+
+    match meta_itr.next().ok_or(BadInput)? {
+      "falls" => Ok(Event::FallAsleep(dt)),
+      "wakes" => Ok(Event::WakeUp(dt)),
+      "Guard" => {
+        let guard_info = meta_itr.next().ok_or(BadInput)?;
+        let id_re = Regex::new(r"^.*?#(?P<id>\d+?)\s.*?$")?;
+        let caps = id_re.captures(guard_info)?;
+        let id = caps.name("id")?.as_str().parse::<i32>()?;
+        Ok(Event::ClockIn(id, dt))
+      }
+      _ => Err(BadInput),
+    }
   }
 }
 
@@ -65,6 +96,8 @@ where
 
 fn main() -> io::Result<()> {
   let input: Vec<Event> = get_input("input.txt")?;
-  println!("{:?}", &input);
+  for x in input {
+    println!("{:?}", x);
+  }
   Ok(())
 }
