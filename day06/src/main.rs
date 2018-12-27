@@ -44,6 +44,33 @@ fn find_largest_area(points: &[Point]) -> Option<usize> {
   }
 }
 
+fn total_distance(from_point: &Point, to_points: &[Point]) -> u16 {
+  let mut sum = 0;
+
+  for p in to_points {
+    sum += from_point.distance_to(p);
+  }
+
+  sum
+}
+
+fn safe_region_size(points: &[Point], threshold: u16) -> usize {
+  let bounds = Bounds::from_points(points);
+  let mut good_regions = vec![];
+
+  for i in bounds.left..=bounds.right {
+    for j in bounds.top..=bounds.bottom {
+      let curr = Point { x: i, y: j };
+
+      if total_distance(&curr, points) < threshold {
+        good_regions.push(curr);
+      }
+    }
+  }
+
+  good_regions.len()
+}
+
 fn main() -> io::Result<()> {
   let f = File::open("input.txt")?;
   let f = BufReader::new(f);
@@ -53,10 +80,15 @@ fn main() -> io::Result<()> {
     .collect();
 
   if let Some(area_size) = find_largest_area(&points) {
-    println!("Largest non-infinte area: {}", area_size);
+    println!("Part1: Largest non-infinte area: {}", area_size);
   } else {
-    println!("Failed to find area.");
+    println!("Part1: Failed to find area.");
   }
+
+  println!(
+    "Part2: Safe region size: {}",
+    safe_region_size(&points, 10_000)
+  );
 
   Ok(())
 }
@@ -101,6 +133,21 @@ mod test_super {
       Point { x: 5, y: 5 },
       Point { x: 8, y: 9 },
     ];
-    assert_eq!(find_largest_area(&points), 17);
+    if let Some(len) = find_largest_area(&points) {
+      assert_eq!(len, 17);
+    }
+  }
+
+  #[test]
+  fn test_safe_regions() {
+    let points = vec![
+      Point { x: 1, y: 1 },
+      Point { x: 1, y: 6 },
+      Point { x: 8, y: 3 },
+      Point { x: 3, y: 4 },
+      Point { x: 5, y: 5 },
+      Point { x: 8, y: 9 },
+    ];
+    assert_eq!(safe_region_size(&points, 32), 16);
   }
 }
