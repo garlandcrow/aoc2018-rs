@@ -7,63 +7,57 @@ mod types;
 use crate::types::{Bounds, Point};
 
 fn uniquely_shortest_point(from_point: &Point, to_points: &[Point]) -> Option<Point> {
-  let mut shortest: (u16, Option<Point>) = (u16::max_value(), None);
-
-  for p in to_points {
-    let dist = p.distance_to(from_point);
-    if dist == shortest.0 {
-      shortest = (dist, None)
-    } else if dist < shortest.0 {
-      shortest = (dist, Some(p.clone()));
-    }
-  }
-
-  shortest.1
+  to_points
+    .iter()
+    .fold((u16::max_value(), None), |(short_dist, short_point), p| {
+      let dist = p.distance_to(from_point);
+      if dist == short_dist {
+        (dist, None)
+      } else if dist < short_dist {
+        (dist, Some(p.clone()))
+      } else {
+        (short_dist, short_point)
+      }
+    })
+    .1
 }
 
 fn find_largest_area(points: &[Point]) -> Option<usize> {
   let bounds = Bounds::from_points(points);
   let mut areas: HashMap<Point, Vec<Point>> = HashMap::with_capacity(points.len());
 
-  for i in bounds.left..=bounds.right {
-    for j in bounds.top..=bounds.bottom {
-      let curr = Point { x: i, y: j };
-      if let Some(p) = uniquely_shortest_point(&curr, &points) {
+  for x in bounds.left..=bounds.right {
+    for y in bounds.top..=bounds.bottom {
+      let curr_point = Point { x, y };
+      if let Some(p) = uniquely_shortest_point(&curr_point, &points) {
         let point_list = areas.entry(p).or_insert(vec![]);
-        point_list.push(curr);
+        point_list.push(curr_point);
       }
     }
   }
 
   match areas
     .iter()
-    .max_by(|(_k1, v1), (_k2, v2)| v1.len().cmp(&v2.len()))
+    .max_by(|(_, list1), (_, list2)| list1.len().cmp(&list2.len()))
   {
-    Some((_k, v)) => Some(v.len()),
+    Some((_, list)) => Some(list.len()),
     _ => None,
   }
-}
-
-fn total_distance(from_point: &Point, to_points: &[Point]) -> u16 {
-  let mut sum = 0;
-
-  for p in to_points {
-    sum += from_point.distance_to(p);
-  }
-
-  sum
 }
 
 fn safe_region_size(points: &[Point], threshold: u16) -> usize {
   let bounds = Bounds::from_points(points);
   let mut good_regions = vec![];
 
-  for i in bounds.left..=bounds.right {
-    for j in bounds.top..=bounds.bottom {
-      let curr = Point { x: i, y: j };
-
-      if total_distance(&curr, points) < threshold {
-        good_regions.push(curr);
+  for x in bounds.left..=bounds.right {
+    for y in bounds.top..=bounds.bottom {
+      let curr_point = Point { x, y };
+      let total_distance = points
+        .iter()
+        .map(|p| p.distance_to(&curr_point))
+        .sum::<u16>();
+      if total_distance < threshold {
+        good_regions.push(curr_point);
       }
     }
   }
